@@ -1,0 +1,26 @@
+#include"..\..\소켓프로그래밍\Common.h"
+
+int main(int argc, char* argv[]) {
+    WSADATA wsa;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+        return 1;
+    printf("[알림] 원속 초기화 성공\n");
+
+
+    SOCKET s1 = socket(AF_INET, SOCK_STREAM, 0);
+    if (s1 == INVALID_SOCKET)err_quit("socket()");
+
+    SOCKET s2 = socket(AF_INET, SOCK_STREAM, 0);
+    if (s2 == INVALID_SOCKET)err_quit("socket()");
+
+    printf("[알림] 소켓 생성 성공");
+    printf("%d\n", s1);
+
+    closesocket(s1);
+    printf("%d\n", s2);
+
+    closesocket(s2);
+
+    WSACleanup();
+    return 0;
+}

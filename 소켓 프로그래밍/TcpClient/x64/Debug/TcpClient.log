@@ -1,0 +1,3 @@
+﻿  TcpClient.cpp
+C:\Users\son50\OneDrive\바탕 화면\소켓 프로그래밍\TcpClient\TcpClient.cpp(87,12): warning C4267: '인수': 'size_t'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+  TcpClient.vcxproj -> C:\Users\son50\OneDrive\바탕 화면\소켓 프로그래밍\TcpClient\x64\Debug\TcpClient.exe

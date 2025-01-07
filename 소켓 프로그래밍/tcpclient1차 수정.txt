@@ -1,0 +1,115 @@
+#include "..\Common.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <winsock2.h>
+#include <windows.h>
+
+#define PORT 9000
+#define MAX_CLIENTS 10
+#define BUFSIZE 512
+
+SOCKET clientSockets[MAX_CLIENTS];
+int numClients = 0;
+
+void handleNewClient(SOCKET newClientSocket) {
+    const char* START_STRING = "채팅 서버에 연결됨\n";
+    if (numClients < MAX_CLIENTS) {
+        clientSockets[numClients++] = newClientSocket;
+        send(newClientSocket, START_STRING, strlen(START_STRING), 0);
+        printf("%d번째 사용자 추가.\n", numClients);
+    }
+    else {
+        printf("최대 클라이언트 수를 초과하여 연결을 거부합니다.\n");
+        closesocket(newClientSocket);
+    }
+}
+
+void handleClient(void* arg) {
+    SOCKET clientSocket = *(SOCKET*)arg;
+    char recvBuf[BUFSIZE];
+    int bytesReceived;
+
+    // 클라이언트 연결됨을 알림
+    printf("클라이언트가 연결되었습니다. 현재 클라이언트 수: %d\n", numClients);
+
+    while (1) {
+        bytesReceived = recv(clientSocket, recvBuf, BUFSIZE - 1, 0);
+        if (bytesReceived > 0) {
+            recvBuf[bytesReceived] = '\0';
+            // 서버가 받은 메시지를 다른 클라이언트들에게 전송
+            for (int i = 0; i < numClients; ++i) {
+                if (clientSockets[i] != clientSocket) {
+                    send(clientSockets[i], recvBuf, strlen(recvBuf), 0);
+                }
+            }
+        }
+        else {
+            numClients--;
+            printf("클라이언트와의 연결이 끊겼습니다. 현재 클라이언트 수: %d\n", numClients);
+            closesocket(clientSocket); // 클라이언트 소켓 닫기
+            break;
+        }
+    }
+}
+
+int main() {
+    WSADATA wsaData;
+    SOCKET listenSocket, clientSocket;
+    struct sockaddr_in serverAddr;
+    int retval;
+
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        printf("Winsock 초기화 실패\n");
+        return 1;
+    }
+
+    listenSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (listenSocket == INVALID_SOCKET) {
+        printf("소켓 생성 실패\n");
+        WSACleanup();
+        return 1;
+    }
+
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serverAddr.sin_port = htons(PORT);
+
+    retval = bind(listenSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+    if (retval == SOCKET_ERROR) {
+        printf("바인딩 실패\n");
+        closesocket(listenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    retval = listen(listenSocket, SOMAXCONN);
+    if (retval == SOCKET_ERROR) {
+        printf("대기열 설정 실패\n");
+        closesocket(listenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    while (1) {
+        if (numClients < MAX_CLIENTS) {
+            clientSocket = accept(listenSocket, NULL, NULL);
+            if (clientSocket == INVALID_SOCKET) {
+                printf("연결 수락 실패\n");
+                closesocket(listenSocket);
+                WSACleanup();
+                return 1;
+            }
+
+            handleNewClient(clientSocket);
+
+            // 클라이언트에 대한 처리를 위한 스레드 생성
+            HANDLE clientThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)handleClient, (LPVOID)&clientSocket, 0, NULL);
+            CloseHandle(clientThread);
+        }
+    }
+
+    closesocket(listenSocket);
+    WSACleanup();
+
+    return 0;
+}
